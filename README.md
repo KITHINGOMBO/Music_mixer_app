@@ -14,3 +14,4 @@ Persistent Storage: Your recorded tracks are automatically saved to Firestore, s
 Responsive Design: The layout is designed to adapt well to different screen sizes, making it suitable for mobile phones.
 
 After you record a track, it will appear in the "Your Tracks" section. You can then use the sliders and buttons to mix your music. Feel free to experiment with different AI prompts to get creative suggestions!
+Created by: Dennis Kithi Ngombo with some assistance and research from Gemini.
