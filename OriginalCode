@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Music Mixer</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c; /* Dark background */
+            color: #e2e8f0; /* Light text */
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Align to top for better mobile scrolling */
+            min-height: 100vh;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #2d3748; /* Slightly lighter dark background for container */
+            border-radius: 1.5rem; /* More rounded corners */
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.3);
+            max-width: 90%; /* Responsive width */
+            width: 100%;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .btn {
+            @apply px-6 py-3 rounded-full font-semibold transition-all duration-200 ease-in-out shadow-lg;
+        }
+        .btn-primary {
+            @apply bg-indigo-600 hover:bg-indigo-700 text-white;
+        }
+        .btn-secondary {
+            @apply bg-gray-700 hover:bg-gray-600 text-white;
+        }
+        .btn-danger {
+            @apply bg-red-600 hover:bg-red-700 text-white;
+        }
+        .track-item {
+            @apply flex flex-col sm:flex-row items-center justify-between bg-gray-700 p-4 rounded-xl shadow-md gap-3;
+        }
+        input[type="range"] {
+            @apply w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            @apply w-4 h-4 bg-indigo-500 rounded-full shadow-md;
+            -webkit-appearance: none;
+        }
+        input[type="range"]::-moz-range-thumb {
+            @apply w-4 h-4 bg-indigo-500 rounded-full shadow-md;
+        }
+        .message-box {
+            @apply fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4;
+        }
+        .message-content {
+            @apply bg-gray-800 p-6 rounded-xl shadow-2xl max-w-sm text-center;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Message Box for alerts -->
+    <div id="messageBox" class="message-box hidden">
+        <div class="message-content">
+            <p id="messageText" class="text-lg mb-4"></p>
+            <button id="messageCloseBtn" class="btn btn-primary">OK</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1 class="text-3xl font-bold text-center mb-4 text-indigo-400">AI Music Mixer</h1>
+
+        <!-- Recording Section -->
+        <div class="bg-gray-800 p-6 rounded-xl shadow-inner flex flex-col items-center gap-4">
+            <h2 class="text-xl font-semibold text-indigo-300">Record New Track</h2>
+            <div class="flex gap-4">
+                <button id="recordBtn" class="btn btn-primary flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
+                    Record
+                </button>
+                <button id="stopBtn" class="btn btn-secondary flex items-center gap-2" disabled>
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"></path></svg>
+                    Stop
+                </button>
+            </div>
+            <p id="recordingStatus" class="text-lg text-gray-400">Ready to record.</p>
+        </div>
+
+        <!-- Tracks Section -->
+        <div class="bg-gray-800 p-6 rounded-xl shadow-inner">
+            <h2 class="text-xl font-semibold text-indigo-300 mb-4">Your Tracks</h2>
+            <div id="tracksContainer" class="flex flex-col gap-4">
+                <p id="noTracksMessage" class="text-gray-400 text-center">No tracks recorded yet.</p>
+            </div>
+        </div>
+
+        <!-- AI Mixing Suggestions Section -->
+        <div class="bg-gray-800 p-6 rounded-xl shadow-inner">
+            <h2 class="text-xl font-semibold text-indigo-300 mb-4">AI Mixing Assistant</h2>
+            <div class="flex flex-col gap-4">
+                <textarea id="aiPrompt" class="w-full p-3 rounded-lg bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" rows="3" placeholder="Describe your music or ask for mixing suggestions (e.g., 'Make the vocals clearer and add some bass')."></textarea>
+                <button id="getAiSuggestionsBtn" class="btn btn-primary flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M9.25 11.25a.75.75 0 01.75-.75h.008a.75.75 0 01.75.75v.008a.75.75 0 01-.75.75h-.008a.75.75 0 01-.75-.75v-.008zM12.75 11.25a.75.75 0 01.75-.75h.008a.75.75 0 01.75.75v.008a.75.75 0 01-.75.75h-.008a.75.75 0 01-.75-.75v-.008zM16.25 11.25a.75.75 0 01.75-.75h.008a.75.75 0 01.75.75v.008a.75.75 0 01-.75.75h-.008a.75.75 0 01-.75-.75v-.008zM6.75 11.25a.75.75 0 01.75-.75h.008a.75.75 0 01.75.75v.008a.75.75 0 01-.75.75h-.008a.75.75 0 01-.75-.75v-.008zM3.25 11.25a.75.75 0 01.75-.75h.008a.75.75 0 01.75.75v.008a.75.75 0 01-.75.75h-.008a.75.75 0 01-.75-.75v-.008zM10 3a7 7 0 100 14 7 7 0 000-14zM10 4.5a5.5 5.5 0 110 11 5.5 5.5 0 010-11z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
+                    Get AI Suggestions
+                </button>
+            </div>
+            <div id="aiSuggestionsOutput" class="mt-4 p-4 bg-gray-700 rounded-xl text-gray-300 min-h-[100px] overflow-auto">
+                <p class="text-gray-400">AI suggestions will appear here.</p>
+            </div>
+            <div id="aiLoadingIndicator" class="hidden mt-4 text-center">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto"></div>
+                <p class="text-indigo-400 mt-2">Generating suggestions...</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Global variables for Firebase (provided by the environment)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Firebase imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, collection, query, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Initialize Firebase
+        let app;
+        let db;
+        let auth;
+        let userId = 'anonymous'; // Default to anonymous
+
+        // Message Box functions
+        const messageBox = document.getElementById('messageBox');
+        const messageText = document.getElementById('messageText');
+        const messageCloseBtn = document.getElementById('messageCloseBtn');
+
+        function showMessage(message) {
+            messageText.textContent = message;
+            messageBox.classList.remove('hidden');
+        }
+
+        messageCloseBtn.addEventListener('click', () => {
+            messageBox.classList.add('hidden');
+        });
+
+        // Initialize Firebase and authenticate
+        async function initializeFirebase() {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        console.log("Firebase authenticated. User ID:", userId);
+                        // Display userId for multi-user context (as per instructions)
+                        const userIdDisplay = document.createElement('p');
+                        userIdDisplay.id = 'userIdDisplay';
+                        userIdDisplay.className = 'text-sm text-gray-500 text-center mt-2';
+                        userIdDisplay.textContent = `User ID: ${userId}`;
+                        document.querySelector('.container').appendChild(userIdDisplay);
+                        // Start listening to tracks after auth
+                        setupTrackListener();
+                    } else {
+                        console.log("Firebase authentication failed or user signed out.");
+                        userId = crypto.randomUUID(); // Fallback to random UUID if anonymous sign-in fails
+                        showMessage("Failed to authenticate with Firebase. Functionality might be limited.");
+                    }
+                });
+            } catch (error) {
+                console.error("Error initializing Firebase:", error);
+                showMessage("Error initializing Firebase. Please check console for details.");
+            }
+        }
+
+        // Call Firebase initialization
+        initializeFirebase();
+
+        // Audio Context and Media Recorder setup
+        let audioContext;
+        let mediaRecorder;
+        let audioChunks = [];
+        let recordedTracks = []; // Array to hold track data (audioBuffer, gainNode, sourceNode, etc.)
+
+        const recordBtn = document.getElementById('recordBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const recordingStatus = document.getElementById('recordingStatus');
+        const tracksContainer = document.getElementById('tracksContainer');
+        const noTracksMessage = document.getElementById('noTracksMessage');
+        const aiPrompt = document.getElementById('aiPrompt');
+        const getAiSuggestionsBtn = document.getElementById('getAiSuggestionsBtn');
+        const aiSuggestionsOutput = document.getElementById('aiSuggestionsOutput');
+        const aiLoadingIndicator = document.getElementById('aiLoadingIndicator');
+
+        // Function to create a unique ID for tracks
+        const generateUniqueId = () => `track_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+        // Function to convert Blob to Base64
+        const blobToBase64 = (blob) => {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        };
+
+        // Function to convert Base64 to Blob
+        const base64ToBlob = (base64) => {
+            const parts = base64.split(';base64,');
+            const contentType = parts[0].split(':')[1];
+            const raw = window.atob(parts[1]);
+            const rawLength = raw.length;
+            const uInt8Array = new Uint8Array(rawLength);
+            for (let i = 0; i < rawLength; ++i) {
+                uInt8Array[i] = raw.charCodeAt(i);
+            }
+            return new Blob([uInt8Array], { type: contentType });
+        };
+
+        // Function to save a track to Firestore
+        async function saveTrackToFirestore(trackId, trackData) {
+            if (!db || !userId) {
+                console.error("Firestore not initialized or user not authenticated.");
+                showMessage("Cannot save track: Firebase not ready.");
+                return;
+            }
+            try {
+                // Convert audioBlob to base64 string for storage
+                const base64Audio = await blobToBase64(trackData.audioBlob);
+                const trackRef = doc(db, `artifacts/${appId}/users/${userId}/musicTracks`, trackId);
+                await setDoc(trackRef, {
+                    id: trackId,
+                    name: trackData.name,
+                    audioBase64: base64Audio,
+                    volume: trackData.volume,
+                    muted: trackData.muted,
+                    timestamp: Date.now()
+                });
+                console.log("Track saved to Firestore:", trackId);
+            } catch (error) {
+                console.error("Error saving track to Firestore:", error);
+                showMessage("Error saving track. Please try again.");
+            }
+        }
+
+        // Function to delete a track from Firestore
+        async function deleteTrackFromFirestore(trackId) {
+            if (!db || !userId) {
+                console.error("Firestore not initialized or user not authenticated.");
+                showMessage("Cannot delete track: Firebase not ready.");
+                return;
+            }
+            try {
+                const trackRef = doc(db, `artifacts/${appId}/users/${userId}/musicTracks`, trackId);
+                await deleteDoc(trackRef);
+                console.log("Track deleted from Firestore:", trackId);
+            } catch (error) {
+                console.error("Error deleting track from Firestore:", error);
+                showMessage("Error deleting track. Please try again.");
+            }
+        }
+
+        // Setup Firestore listener for tracks
+        function setupTrackListener() {
+            if (!db || !userId) {
+                console.log("Firestore or userId not ready for listener setup.");
+                return;
+            }
+            const q = query(collection(db, `artifacts/${appId}/users/${userId}/musicTracks`));
+            onSnapshot(q, (snapshot) => {
+                const newTracks = [];
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    newTracks.push(data);
+                });
+                // Clear existing tracks and re-render
+                recordedTracks = []; // Reset local state
+                tracksContainer.innerHTML = ''; // Clear UI
+                if (newTracks.length === 0) {
+                    noTracksMessage.classList.remove('hidden');
+                } else {
+                    noTracksMessage.classList.add('hidden');
+                    newTracks.sort((a, b) => a.timestamp - b.timestamp); // Sort by timestamp
+                    newTracks.forEach(trackData => {
+                        // Convert base64 back to Blob
+                        const audioBlob = base64ToBlob(trackData.audioBase64);
+                        addTrackToUI(trackData.id, trackData.name, audioBlob, trackData.volume, trackData.muted);
+                    });
+                }
+            }, (error) => {
+                console.error("Error listening to tracks:", error);
+                showMessage("Error loading tracks. Please refresh.");
+            });
+        }
+
+
+        // Start recording
+        recordBtn.addEventListener('click', async () => {
+            try {
+                // Initialize AudioContext if not already
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const trackId = generateUniqueId();
+                    const trackName = `Track ${recordedTracks.length + 1}`;
+
+                    // Add to UI and local state first
+                    addTrackToUI(trackId, trackName, audioBlob);
+
+                    // Save to Firestore
+                    await saveTrackToFirestore(trackId, {
+                        id: trackId,
+                        name: trackName,
+                        audioBlob: audioBlob,
+                        volume: 1, // Default volume
+                        muted: false // Default not muted
+                    });
+
+                    audioChunks = []; // Clear chunks for next recording
+                    stream.getTracks().forEach(track => track.stop()); // Stop microphone stream
+                };
+
+                mediaRecorder.start();
+                recordingStatus.textContent = 'Recording...';
+                recordBtn.disabled = true;
+                stopBtn.disabled = false;
+            } catch (err) {
+                console.error('Error accessing microphone:', err);
+                recordingStatus.textContent = 'Error: Microphone access denied or not available.';
+                showMessage('Microphone access denied or not available. Please allow microphone access to record.');
+            }
+        });
+
+        // Stop recording
+        stopBtn.addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                recordingStatus.textContent = 'Processing recording...';
+                recordBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        });
+
+        // Function to add a track element to the UI
+        function addTrackToUI(trackId, trackName, audioBlob, initialVolume = 1, initialMuted = false) {
+            noTracksMessage.classList.add('hidden');
+
+            const trackElement = document.createElement('div');
+            trackElement.id = `track-${trackId}`;
+            trackElement.className = 'track-item';
+
+            // Create AudioBuffer from Blob
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                audioContext.decodeAudioData(e.target.result, (buffer) => {
+                    const gainNode = audioContext.createGain();
+                    gainNode.connect(audioContext.destination);
+                    gainNode.gain.value = initialVolume; // Set initial volume
+
+                    const trackData = {
+                        id: trackId,
+                        name: trackName,
+                        audioBlob: audioBlob, // Keep original blob for saving
+                        audioBuffer: buffer,
+                        gainNode: gainNode,
+                        sourceNode: null, // Will be created on play
+                        isPlaying: false,
+                        volume: initialVolume,
+                        muted: initialMuted
+                    };
+                    recordedTracks.push(trackData);
+
+                    trackElement.innerHTML = `
+                        <div class="flex-1 flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+                            <span class="text-lg font-medium text-indigo-200">${trackName}</span>
+                            <div class="flex gap-2">
+                                <button class="play-pause-btn btn btn-secondary p-2 rounded-full">
+                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
+                                </button>
+                                <button class="mute-btn btn btn-secondary p-2 rounded-full ${trackData.muted ? 'bg-red-500' : ''}">
+                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.616 11.293a1 1 0 010 1.414l-1.414 1.414a1 1 0 01-1.414-1.414L12.78 12l-1.414-1.414a1 1 0 011.414-1.414l1.414 1.414z" clip-rule="evenodd"></path></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex-1 w-full sm:w-auto">
+                            <label for="volume-${trackId}" class="block text-sm text-gray-400 mb-1">Volume</label>
+                            <input type="range" id="volume-${trackId}" min="0" max="1" step="0.01" value="${initialVolume}" class="volume-slider">
+                        </div>
+                        <button class="delete-btn btn btn-danger p-2 rounded-full">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 11-2 0v6a1 1 0 112 0V8z" clip-rule="evenodd"></path></svg>
+                        </button>
+                    `;
+
+                    // Add event listeners for the new track
+                    const playPauseBtn = trackElement.querySelector('.play-pause-btn');
+                    const muteBtn = trackElement.querySelector('.mute-btn');
+                    const volumeSlider = trackElement.querySelector('.volume-slider');
+                    const deleteBtn = trackElement.querySelector('.delete-btn');
+
+                    playPauseBtn.addEventListener('click', () => togglePlayPause(trackData, playPauseBtn));
+                    muteBtn.addEventListener('click', () => toggleMute(trackData, muteBtn));
+                    volumeSlider.addEventListener('input', (e) => setTrackVolume(trackData, parseFloat(e.target.value)));
+                    deleteBtn.addEventListener('click', () => deleteTrack(trackData, trackElement));
+
+                    // Set initial mute state visually
+                    if (trackData.muted) {
+                        gainNode.gain.value = 0; // Ensure actual gain is 0 if muted
+                    }
+
+                    tracksContainer.appendChild(trackElement);
+                    recordingStatus.textContent = 'Ready to record.'; // Reset status after processing
+                }, (error) => {
+                    console.error('Error decoding audio data:', error);
+                    showMessage('Error decoding audio for playback.');
+                });
+            };
+            reader.readAsArrayBuffer(audioBlob);
+        }
+
+        // Play/Pause a track
+        function togglePlayPause(trackData, button) {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            if (trackData.isPlaying) {
+                if (trackData.sourceNode) {
+                    trackData.sourceNode.stop();
+                    trackData.sourceNode.disconnect();
+                    trackData.sourceNode = null;
+                }
+                trackData.isPlaying = false;
+                button.innerHTML = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>`;
+            } else {
+                trackData.sourceNode = audioContext.createBufferSource();
+                trackData.sourceNode.buffer = trackData.audioBuffer;
+                trackData.sourceNode.connect(trackData.gainNode);
+                trackData.sourceNode.start(0);
+                trackData.isPlaying = true;
+                button.innerHTML = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"></path></svg>`;
+
+                // When track finishes playing, reset button and state
+                trackData.sourceNode.onended = () => {
+                    trackData.isPlaying = false;
+                    button.innerHTML = `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>`;
+                };
+            }
+        }
+
+        // Mute/Unmute a track
+        function toggleMute(trackData, button) {
+            trackData.muted = !trackData.muted;
+            if (trackData.muted) {
+                trackData.gainNode.gain.value = 0;
+                button.classList.add('bg-red-500');
+            } else {
+                trackData.gainNode.gain.value = trackData.volume; // Restore to previous volume
+                button.classList.remove('bg-red-500');
+            }
+            // Update Firestore
+            saveTrackToFirestore(trackData.id, trackData);
+        }
+
+        // Set track volume
+        function setTrackVolume(trackData, volume) {
+            trackData.volume = volume;
+            if (!trackData.muted) { // Only apply if not muted
+                trackData.gainNode.gain.value = volume;
+            }
+            // Update Firestore
+            saveTrackToFirestore(trackData.id, trackData);
+        }
+
+        // Delete a track
+        function deleteTrack(trackData, element) {
+            // Stop playing if it is
+            if (trackData.isPlaying && trackData.sourceNode) {
+                trackData.sourceNode.stop();
+                trackData.sourceNode.disconnect();
+            }
+            // Remove from local array
+            recordedTracks = recordedTracks.filter(t => t.id !== trackData.id);
+            // Remove from UI
+            element.remove();
+            if (recordedTracks.length === 0) {
+                noTracksMessage.classList.remove('hidden');
+            }
+            // Delete from Firestore
+            deleteTrackFromFirestore(trackData.id);
+        }
+
+        // AI Suggestions Logic
+        getAiSuggestionsBtn.addEventListener('click', async () => {
+            const prompt = aiPrompt.value.trim();
+            if (!prompt) {
+                showMessage("Please enter a prompt for AI suggestions.");
+                return;
+            }
+
+            aiSuggestionsOutput.innerHTML = ''; // Clear previous suggestions
+            aiLoadingIndicator.classList.remove('hidden');
+            getAiSuggestionsBtn.disabled = true;
+
+            const currentTracksInfo = recordedTracks.map(track => ({
+                name: track.name,
+                volume: track.volume,
+                muted: track.muted
+            })).join('\n');
+
+            const fullPrompt = `I am mixing music. Here are my current tracks and their states:\n\n${currentTracksInfo}\n\nUser request: "${prompt}"\n\nPlease provide concise mixing suggestions based on the user's request and the current track information. Focus on practical advice for a music mixer.`;
+
+            try {
+                let chatHistory = [];
+                chatHistory.push({ role: "user", parts: [{ text: fullPrompt }] });
+                const payload = { contents: chatHistory };
+                const apiKey = ""; // Canvas will automatically provide the API key
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    aiSuggestionsOutput.innerHTML = `<p>${text.replace(/\n/g, '<br>')}</p>`;
+                } else {
+                    aiSuggestionsOutput.innerHTML = '<p class="text-red-400">Could not get AI suggestions. Please try again.</p>';
+                    console.error("Unexpected AI response structure:", result);
+                }
+            } catch (error) {
+                console.error("Error fetching AI suggestions:", error);
+                aiSuggestionsOutput.innerHTML = '<p class="text-red-400">Error fetching AI suggestions. Please check your network connection.</p>';
+                showMessage("Error getting AI suggestions. Check console for details.");
+            } finally {
+                aiLoadingIndicator.classList.add('hidden');
+                getAiSuggestionsBtn.disabled = false;
+            }
+        });
+
+    </script>
+</body>
+</html>
